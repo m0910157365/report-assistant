@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A4 成果報告照片排版助手 (極簡格線版)</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 FontAwesome 圖示庫 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght=300;400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        /* A4 紙張模擬樣式 (供螢幕預覽用) */
+        .a4-page {
+            width: 210mm;
+            height: 297mm;
+            background: white;
+            box-shadow: 0 4px 20px -2px rgba(120, 110, 90, 0.15);
+            margin: 20px auto;
+            padding: 12mm 20mm 12mm 20mm; /* A4 緊湊邊距 */
+            position: relative;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* 成果表格格線折疊 */
+        .report-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .report-table td {
+            border: 1.5px solid #57534e; /* 溫潤的深石色外格線 */
+            padding: 3px; /* 極致縮小 Padding 讓相片貼近格線 */
+            vertical-align: top;
+        }
+
+        /* 印表機/列印設定 */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-container {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: white !important;
+            }
+            .a4-page {
+                width: 210mm;
+                height: 297mm;
+                margin: 0 !important;
+                padding: 12mm 20mm 12mm 20mm !important;
+                box-shadow: none !important;
+                page-break-after: always !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+            }
+        }
+
+        /* 隱藏捲軸但保留功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-stone-100 text-stone-800 min-h-screen flex flex-col">
+
+    <!-- 頂部導航欄 (列印時隱藏) -->
+    <header class="no-print bg-gradient-to-r from-amber-700 to-orange-800 text-white shadow-md px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+            <div class="bg-white text-amber-700 p-2.5 rounded-lg shadow-inner">
+                <i class="fa-solid fa-file-invoice text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-wide">A4 成果報告快速排版工具</h1>
+                <p class="text-xs text-amber-100">相片無痛排版 • 獨立格線設計 • A4 Word 快速匯出</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="openLayoutModal()" class="bg-amber-600 hover:bg-amber-500 transition px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 border border-amber-500 shadow-sm">
+                <i class="fa-solid fa-table-columns"></i> 版面樣式
+            </button>
+            <button onclick="exportToWord()" class="bg-orange-600 hover:bg-orange-500 transition px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-file-word"></i> 匯出 Word
+            </button>
+            <button onclick="window.print()" class="bg-stone-700 hover:bg-stone-600 transition px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-print"></i> 列印 / PDF
+            </button>
+        </div>
+    </header>
+
+    <!-- 主要操作區 -->
+    <main class="flex-1 flex flex-col lg:flex-row min-h-[calc(100vh-76px)]">
+        
+        <!-- 左側：設定控制面板 (列印時隱藏) -->
+        <section class="no-print w-full lg:w-[320px] bg-white border-r border-stone-200 p-5 flex flex-col justify-between shrink-0 overflow-y-auto no-scrollbar">
+            <div class="space-y-6">
+                <!-- 1. 報告資訊設定 -->
+                <div>
+                    <h3 class="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-pen-to-square"></i> 報告基本資訊
+                    </h3>
+                    <div class="space-y-2.5 bg-stone-50 p-3 rounded-xl border border-stone-100">
+                        <div>
+                            <label class="block text-[10px] text-stone-400 font-semibold mb-0.5">成果報告標題</label>
+                            <input type="text" id="reportTitle" value="115學年度活動辦理成果報告" oninput="updateDocumentDetails()" placeholder="成果報告標題" class="w-full border border-stone-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. 排版微調 -->
+                <div>
+                    <h3 class="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-sliders"></i> 排版格式設定
+                    </h3>
+                    <div class="space-y-2.5 bg-stone-50 p-3 rounded-xl border border-stone-100">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-stone-600">目前格式</span>
+                            <span id="currentLayoutBadge" class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">雙欄 (密集格線版)</span>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-stone-400 font-semibold mb-0.5">單頁照片上限 (自動分頁)</label>
+                            <select id="photosPerPageSelect" onchange="changePhotosPerPage(this.value)" class="w-full border border-stone-300 rounded-lg px-2 py-1.5 text-xs outline-none bg-white">
+                                <option value="8" selected>單頁 8 張照片 (雙欄密集推薦)</option>
+                                <option value="6">單頁 6 張照片 (雙欄大圖推薦)</option>
+                                <option value="4">單頁 4 張照片 (雙欄超大)</option>
+                                <option value="2">單頁 2 張照片 (單欄呈現)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 檔案上傳 -->
+                <div>
+                    <h3 class="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> 匯入照片
+                    </h3>
+                    <div id="dropzone" class="border-2 border-dashed border-stone-300 hover:border-amber-500 bg-stone-50 hover:bg-amber-50/20 transition rounded-xl p-5 text-center cursor-pointer">
+                        <input type="file" id="fileInput" multiple accept="image/*" class="hidden" onchange="handleFiles(this.files)">
+                        <i class="fa-solid fa-images text-2xl text-stone-400 mb-1.5"></i>
+                        <p class="text-xs font-semibold text-stone-700">選擇或拖曳多張照片至此</p>
+                    </div>
+
+                    <div id="uploadStatus" class="mt-2 hidden">
+                        <div class="flex justify-between text-[10px] text-stone-600 mb-0.5">
+                            <span>相片處理中...</span>
+                            <span id="uploadProgressText">0 / 0</span>
+                        </div>
+                        <div class="w-full bg-stone-200 rounded-full h-1">
+                            <div id="uploadProgressBar" class="bg-amber-600 h-1 rounded-full transition-all duration-200" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. 下載匯出按鈕 -->
+                <div class="pt-2">
+                    <button onclick="exportToWord()" class="w-full py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 shadow-md shadow-orange-100 transition-all">
+                        <i class="fa-solid fa-file-word"></i> 下載 A4 Word 成果檔
+                    </button>
+                </div>
+            </div>
+
+            <!-- 狀態列 -->
+            <div class="mt-6 pt-3 border-t border-stone-100">
+                <div class="flex items-center justify-between text-[10px] text-stone-400">
+                    <span>排版引擎</span>
+                    <span class="flex items-center gap-1 text-emerald-600 font-medium">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 正常運作
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 右側：A4 預覽畫布區域 -->
+        <section class="flex-1 bg-stone-200 overflow-y-auto p-4 lg:p-6 no-scrollbar relative flex flex-col items-center">
+            
+            <!-- A4 列印引導小幫手 (無照片時顯示) -->
+            <div id="emptyState" class="my-auto text-center max-w-sm p-6 bg-white rounded-2xl shadow-md border border-stone-100 no-print">
+                <div class="w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto mb-3 text-lg">
+                    <i class="fa-solid fa-paste"></i>
+                </div>
+                <h3 class="text-sm font-bold text-stone-800 mb-1">尚未上傳成果照片</h3>
+                <p class="text-xs text-stone-500 leading-relaxed mb-4">
+                    請點選左側「拖曳相片區域」或直接上傳照片。系統會自動幫您做好 A4 密集排版並加上實線格線框。
+                </p>
+                <button onclick="document.getElementById('fileInput').click()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-semibold text-xs shadow transition">
+                    立即選擇照片
+                </button>
+            </div>
+
+            <!-- A4 實際渲染的頁面容器 -->
+            <div id="printContainer" class="print-container w-full max-w-[210mm] hidden space-y-6">
+                <!-- A4 頁面會在此處動態生成 -->
+            </div>
+
+        </section>
+    </main>
+
+    <!-- 客製化通知訊息視窗 -->
+    <div id="toast" class="no-print fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-stone-900 text-white px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2">
+        <span id="toastIcon" class="text-amber-400"><i class="fa-solid fa-circle-info"></i></span>
+        <span id="toastMessage" class="text-xs font-medium">提示訊息</span>
+    </div>
+
+    <!-- 版面選擇 Modal -->
+    <div id="layoutModal" class="no-print fixed inset-0 z-50 flex items-center justify-center bg-stone-950/50 backdrop-blur-sm px-4 hidden">
+        <div class="bg-white rounded-xl max-w-md w-full p-5 shadow-xl border border-stone-100 transform scale-95 transition-all">
+            <h2 class="text-base font-bold text-stone-900 mb-4 flex items-center gap-1.5">
+                <i class="fa-solid fa-images text-amber-600"></i> 設定您的排版方式
+            </h2>
+
+            <div class="grid grid-cols-2 gap-4 mb-5">
+                <!-- 方案 A：雙欄 (上圖下文) - 預設 -->
+                <div onclick="selectLayout('grid')" id="layoutCardGrid" class="cursor-pointer border-2 border-amber-600 bg-amber-50/30 p-3 rounded-lg hover:border-amber-500 transition-all relative">
+                    <div class="absolute top-2 right-2 text-amber-600 text-sm" id="layoutCheckGrid">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div class="aspect-[4/3] bg-stone-100 rounded mb-2 flex flex-col justify-around p-1.5 border border-stone-200">
+                        <div class="grid grid-cols-2 gap-1 flex-1">
+                            <div class="bg-stone-300 rounded border border-stone-400 h-6"></div>
+                            <div class="bg-stone-300 rounded border border-stone-400 h-6"></div>
+                            <div class="bg-stone-300 rounded border border-stone-400 h-6"></div>
+                            <div class="bg-stone-300 rounded border border-stone-400 h-6"></div>
+                        </div>
+                    </div>
+                    <h4 class="font-bold text-stone-800 text-xs text-center">雙欄 (密集格線版)</h4>
+                </div>
+
+                <!-- 方案 B：單欄 (上圖下文) -->
+                <div onclick="selectLayout('single-column')" id="layoutCardSingle" class="cursor-pointer border-2 border-stone-200 hover:border-amber-500 p-3 rounded-lg transition-all relative">
+                    <div class="absolute top-2 right-2 text-stone-300 text-sm hidden" id="layoutCheckSingle">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div class="aspect-[4/3] bg-stone-100 rounded mb-2 flex flex-col justify-around p-1.5 border border-stone-200">
+                        <div class="flex flex-col gap-1 flex-1 justify-center">
+                            <div class="bg-stone-300 rounded border border-stone-400 h-4 w-full"></div>
+                            <div class="bg-stone-300 rounded border border-stone-400 h-4 w-full"></div>
+                        </div>
+                    </div>
+                    <h4 class="font-bold text-stone-800 text-xs text-center">單欄 (密集格線版)</h4>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 border-t border-stone-100 pt-3">
+                <button onclick="closeLayoutModal()" class="px-4 py-1.5 border border-stone-300 hover:bg-stone-50 text-stone-700 rounded-lg text-xs font-medium transition">
+                    取消
+                </button>
+                <button onclick="applySelectedLayout()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold transition shadow-sm">
+                    確認變更
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 邏輯 -->
+    <script>
+        // 全域狀態管理
+        let uploadedPhotos = []; // 儲存所有的相片物件
+        let currentLayout = 'grid'; // 預設：雙欄網格
+        let tempSelectedLayout = 'grid';
+        let photosPerPage = 8; // 預設每頁 8 張照片，完美填滿 A4 且不留白
+
+        // 頁面初次載入
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('photosPerPageSelect').value = "8";
+        });
+
+        // 簡易 Toast 提示控制
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+            
+            toastMessage.textContent = message;
+            
+            if (type === 'success') {
+                toastIcon.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i>';
+            } else if (type === 'error') {
+                toastIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-rose-400"></i>';
+            } else {
+                toastIcon.innerHTML = '<i class="fa-solid fa-circle-info text-amber-500"></i>';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function hideToast() {
+            document.getElementById('toast').classList.add('translate-y-20', 'opacity-0');
+        }
+
+        // Layout Modal 控制器
+        function openLayoutModal() {
+            document.getElementById('layoutModal').classList.remove('hidden');
+            tempSelectedLayout = currentLayout;
+            highlightSelectedLayoutCard();
+        }
+
+        function closeLayoutModal() {
+            document.getElementById('layoutModal').classList.add('hidden');
+        }
+
+        // 選擇版面
+        function selectLayout(mode) {
+            tempSelectedLayout = mode;
+            highlightSelectedLayoutCard();
+        }
+
+        // 凸顯選取版面卡片
+        function highlightSelectedLayoutCard() {
+            const cardGrid = document.getElementById('layoutCardGrid');
+            const cardSingle = document.getElementById('layoutCardSingle');
+            const checkGrid = document.getElementById('layoutCheckGrid');
+            const checkSingle = document.getElementById('layoutCheckSingle');
+
+            if (tempSelectedLayout === 'grid') {
+                cardGrid.className = "cursor-pointer border-2 border-amber-600 bg-amber-50/30 p-3 rounded-lg hover:border-amber-500 transition-all relative";
+                cardSingle.className = "cursor-pointer border-2 border-stone-200 hover:border-amber-500 p-3 rounded-lg transition-all relative";
+                checkGrid.classList.remove('hidden');
+                checkSingle.classList.add('hidden');
+            } else {
+                cardGrid.className = "cursor-pointer border-2 border-stone-200 hover:border-amber-500 p-3 rounded-lg transition-all relative";
+                cardSingle.className = "cursor-pointer border-2 border-amber-600 bg-amber-50/30 p-3 rounded-lg hover:border-amber-500 transition-all relative";
+                checkGrid.classList.add('hidden');
+                checkSingle.classList.remove('hidden');
+            }
+        }
+
+        // 套用選定的版面樣式
+        function applySelectedLayout() {
+            currentLayout = tempSelectedLayout;
+            const badge = document.getElementById('currentLayoutBadge');
+            const selectPerPage = document.getElementById('photosPerPageSelect');
+            
+            if (currentLayout === 'grid') {
+                badge.textContent = "雙欄 (密集格線版)";
+                photosPerPage = 8;
+                selectPerPage.value = "8";
+            } else {
+                badge.textContent = "單欄 (密集格線版)";
+                photosPerPage = 4;
+                selectPerPage.value = "4";
+            }
+            
+            closeLayoutModal();
+            showToast("排版格式已成功變更", "success");
+            renderReport();
+        }
+
+        function changePhotosPerPage(value) {
+            photosPerPage = parseInt(value, 10);
+            renderReport();
+        }
+
+        // 串流佇列異步讀取與無痛壓縮 (防止瀏覽器載入大圖崩潰)
+        async function handleFiles(files) {
+            if (files.length === 0) return;
+
+            const statusContainer = document.getElementById('uploadStatus');
+            const progressText = document.getElementById('uploadProgressText');
+            const progressBar = document.getElementById('uploadProgressBar');
+
+            statusContainer.classList.remove('hidden');
+            progressText.textContent = `0 / ${files.length}`;
+            progressBar.style.width = '0%';
+
+            let loadedCount = 0;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (!file.type.startsWith('image/')) continue;
+
+                const promise = new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        const originalSrc = e.target.result;
+                        
+                        // 縮減寬度至 1000px，兼顧極致流暢與印刷品質
+                        const compressedBase64 = await resizeImage(originalSrc, 1000);
+
+                        uploadedPhotos.push({
+                            id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                            file: file,
+                            src: compressedBase64, 
+                            base64: compressedBase64.split(',')[1], 
+                            description: "說明：", 
+                            status: 'idle'
+                        });
+
+                        loadedCount++;
+                        progressText.textContent = `${loadedCount} / ${files.length}`;
+                        progressBar.style.width = `${(loadedCount / files.length) * 100}%`;
+                        resolve();
+                    };
+                    reader.readAsDataURL(file);
+                });
+                await promise;
+            }
+
+            setTimeout(() => {
+                statusContainer.classList.add('hidden');
+                showToast(`成功安全載入 ${loadedCount} 張照片！`, 'success');
+                renderReport();
+            }, 500);
+        }
+
+        // 圖片比例最佳化壓縮
+        function resizeImage(dataUrl, maxDimension) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxDimension) {
+                            height = Math.round((height * maxDimension) / width);
+                            width = maxDimension;
+                        }
+                    } else {
+                        if (height > maxDimension) {
+                            width = Math.round((width * maxDimension) / height);
+                            height = maxDimension;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.85)); 
+                };
+                img.src = dataUrl;
+            });
+        }
+
+        // 更新頁面標題
+        function updateDocumentDetails() {
+            const title = document.getElementById('reportTitle').value || "成果報告";
+            document.querySelectorAll('.report-main-title').forEach(el => el.textContent = title);
+        }
+
+        // 手動編輯說明欄內容
+        function updateSingleDescription(id, value) {
+            const photo = uploadedPhotos.find(p => p.id === id);
+            if (photo) {
+                photo.description = value;
+            }
+        }
+
+        // 移除照片
+        function removePhoto(id) {
+            uploadedPhotos = uploadedPhotos.filter(p => p.id !== id);
+            renderReport();
+        }
+
+        // 調整位置排序
+        function movePhoto(id, direction) {
+            const index = uploadedPhotos.findIndex(p => p.id === id);
+            if (index === -1) return;
+
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= uploadedPhotos.length) return;
+
+            const temp = uploadedPhotos[index];
+            uploadedPhotos[index] = uploadedPhotos[targetIndex];
+            uploadedPhotos[targetIndex] = temp;
+
+            renderReport();
+        }
+
+        // 成果報告預覽渲染 (密集連續格線化 A4 版面)
+        function renderReport() {
+            const printContainer = document.getElementById('printContainer');
+            const emptyState = document.getElementById('emptyState');
+
+            if (uploadedPhotos.length === 0) {
+                printContainer.innerHTML = '';
+                printContainer.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            printContainer.classList.remove('hidden');
+            printContainer.innerHTML = '';
+
+            const totalPages = Math.ceil(uploadedPhotos.length / photosPerPage);
+
+            for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+                const pagePhotos = uploadedPhotos.slice(pageIdx * photosPerPage, (pageIdx + 1) * photosPerPage);
+                
+                const pageNode = document.createElement('div');
+                pageNode.className = 'a4-page';
+                
+                // 頁首大標題：水平置中，無贅字
+                const headerHTML = `
+                    <div class="border-b-2 border-stone-800 pb-1.5 mb-2">
+                        <div class="text-center">
+                            <h2 class="report-main-title text-sm font-bold text-stone-800">${document.getElementById('reportTitle').value}</h2>
+                        </div>
+                    </div>
+                `;
+
+                let contentHTML = '';
+                
+                if (currentLayout === 'single-column') {
+                    // 單欄 密集格線版
+                    contentHTML = `<table class="report-table flex-1 w-full mb-auto">`;
+                    pagePhotos.forEach(photo => {
+                        // 依單頁上限動態計算圖片高度，保證極致貼格線與放大
+                        let boxHeight = 'h-[110px]';
+                        if (photosPerPage === 2) boxHeight = 'h-[250px]';
+                        else if (photosPerPage === 4) boxHeight = 'h-[135px]';
+                        else if (photosPerPage === 6) boxHeight = 'h-[115px]';
+                        else if (photosPerPage === 8) boxHeight = 'h-[85px]';
+
+                        contentHTML += `
+                            <tr>
+                                <td class="p-1 bg-stone-50/50">
+                                    <div class="relative group">
+                                        <!-- 控制欄 -->
+                                        <div class="no-print absolute top-1 right-1 flex space-x-1 bg-stone-800/80 backdrop-blur px-1.5 py-0.5 rounded shadow text-white text-[9px] z-10">
+                                            <button onclick="movePhoto('${photo.id}', -1)" title="往上移" class="hover:text-amber-400 px-0.5"><i class="fa-solid fa-arrow-up"></i></button>
+                                            <button onclick="movePhoto('${photo.id}', 1)" title="往下移" class="hover:text-amber-400 px-0.5"><i class="fa-solid fa-arrow-down"></i></button>
+                                            <button onclick="removePhoto('${photo.id}')" title="刪除" class="hover:text-rose-400 px-0.5"><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                        
+                                        <!-- 相片盒 - 滿版設計 -->
+                                        <div class="w-full ${boxHeight} overflow-hidden rounded border border-stone-200 bg-stone-100 flex items-center justify-center mb-1 shadow-inner">
+                                            <img src="${photo.src}" class="w-full h-full object-cover">
+                                        </div>
+
+                                        <!-- 有獨立框線(格線)的說明欄 -->
+                                        <div class="border border-stone-400 bg-white rounded p-1.5">
+                                            <textarea 
+                                                oninput="updateSingleDescription('${photo.id}', this.value)"
+                                                class="w-full bg-transparent border-none text-xs leading-relaxed text-stone-700 outline-none resize-none transition-all cursor-pointer h-[35px]"
+                                                placeholder="請在此處手動輸入說明文字..."
+                                            >${photo.description}</textarea>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    contentHTML += `</table>`;
+                    
+                } else {
+                    // 雙欄 密集格線版 (預設為 8 張照片，每頁 4 排 x 2 列，極致貼合與放大)
+                    contentHTML = `<table class="report-table flex-1 w-full mb-auto">`;
+                    
+                    for (let i = 0; i < pagePhotos.length; i += 2) {
+                        const photo1 = pagePhotos[i];
+                        const photo2 = pagePhotos[i+1];
+                        
+                        // 配合 8 張相片配置，將高度微調成滿版 110px，緊湊對齊
+                        let boxHeight = 'h-[110px]'; 
+                        if (photosPerPage === 4) boxHeight = 'h-[235px]';
+                        else if (photosPerPage === 6) boxHeight = 'h-[155px]';
+
+                        contentHTML += `<tr>`;
+                        
+                        // 左側照片
+                        contentHTML += `
+                            <td class="w-1/2 p-1 bg-stone-50/20">
+                                <div class="relative">
+                                    <div class="no-print absolute top-1 right-1 flex space-x-1 bg-stone-800/80 backdrop-blur px-1.5 py-0.5 rounded shadow text-white text-[9px] z-10">
+                                        <button onclick="movePhoto('${photo1.id}', -1)" class="hover:text-amber-400 px-0.5"><i class="fa-solid fa-arrow-up"></i></button>
+                                        <button onclick="movePhoto('${photo1.id}', 1)" class="hover:text-amber-400 px-0.5"><i class="fa-solid fa-arrow-down"></i></button>
+                                        <button onclick="removePhoto('${photo1.id}')" class="hover:text-rose-400 px-0.5"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                    
+                                    <!-- 完美貼格線滿版容器 -->
+                                    <div class="w-full ${boxHeight} overflow-hidden rounded border border-stone-200 bg-stone-100 flex items-center justify-center mb-1">
+                                        <img src="${photo1.src}" class="w-full h-full object-cover">
+                                    </div>
+
+                                    <!-- 帶有獨立格線(框線)的說明框 -->
+                                    <div class="border border-stone-400 bg-white rounded p-1">
+                                        <textarea 
+                                            oninput="updateSingleDescription('${photo1.id}', this.value)"
+                                            class="w-full bg-transparent border-none text-[11px] leading-normal text-stone-700 outline-none resize-none transition-all cursor-pointer h-[32px]"
+                                            placeholder="請輸入說明..."
+                                        >${photo1.description}</textarea>
+                                    </div>
+                                </div>
+                            </td>
+                        `;
+
+                        // 右側照片
+                        if (photo2) {
+                            contentHTML += `
+                                <td class="w-1/2 p-1 bg-stone-50/20">
+                                    <div class="relative">
+                                        <div class="no-print absolute top-1 right-1 flex space-x-1 bg-stone-800/80 backdrop-blur px-1.5 py-0.5 rounded shadow text-white text-[9px] z-10">
+                                            <button onclick="movePhoto('${photo2.id}', -1)" class="hover:text-amber-400 px-0.5"><i class="fa-solid fa-arrow-up"></i></button>
+                                            <button onclick="movePhoto('${photo2.id}', 1)" class="hover:text-amber-400 px-0.5"><i class="fa-solid fa-arrow-down"></i></button>
+                                            <button onclick="removePhoto('${photo2.id}')" class="hover:text-rose-400 px-0.5"><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                        
+                                        <!-- 完美貼格線滿版容器 -->
+                                        <div class="w-full ${boxHeight} overflow-hidden rounded border border-stone-200 bg-stone-100 flex items-center justify-center mb-1">
+                                            <img src="${photo2.src}" class="w-full h-full object-cover">
+                                        </div>
+
+                                        <!-- 帶有獨立格線(框線)的說明框 -->
+                                        <div class="border border-stone-400 bg-white rounded p-1">
+                                            <textarea 
+                                                oninput="updateSingleDescription('${photo2.id}', this.value)"
+                                                class="w-full bg-transparent border-none text-[11px] leading-normal text-stone-700 outline-none resize-none transition-all cursor-pointer h-[32px]"
+                                                placeholder="請輸入說明..."
+                                        >${photo2.description}</textarea>
+                                        </div>
+                                    </div>
+                                </td>
+                            `;
+                        } else {
+                            contentHTML += `<td class="w-1/2 p-1 bg-stone-100/50"></td>`;
+                        }
+
+                        contentHTML += `</tr>`;
+                    }
+                    contentHTML += `</table>`;
+                }
+
+                // 頁尾資訊：無額外欄位，保持乾淨
+                const footerHTML = `
+                    <div class="mt-1">
+                    </div>
+                `;
+
+                pageNode.innerHTML = headerHTML + contentHTML + footerHTML;
+                printContainer.appendChild(pageNode);
+            }
+
+            updateDocumentDetails();
+        }
+
+        // 匯出 Word 檔案 (高度相容微軟 Word 原生格線與相片縮放規範)
+        function exportToWord() {
+            if (uploadedPhotos.length === 0) {
+                showToast("請先上傳相片！", "error");
+                return;
+            }
+            showToast("正在建立 Word...", "loading");
+
+            const title = document.getElementById('reportTitle').value || "成果報告";
+
+            let htmlContent = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+                <meta charset="utf-8">
+                <title>${title}</title>
+                <!--[if gte mso 9]>
+                <xml>
+                    <w:WordDocument>
+                        <w:View>Print</w:View>
+                        <w:Zoom>100</w:Zoom>
+                        <w:DoNotOptimizeForBrowser/>
+                    </w:WordDocument>
+                </xml>
+                <![endif]-->
+                <style>
+                    @page Section1 {
+                        size: 595.3pt 841.9pt; /* A4 尺寸 */
+                        margin: 45.0pt 56.7pt 45.0pt 56.7pt; /* 邊距最佳化 */
+                        mso-header-margin: 36.0pt;
+                        mso-footer-margin: 36.0pt;
+                        mso-paper-source: 0;
+                    }
+                    div.Section1 { page: Section1; }
+                    body { 
+                        font-family: 'Noto Sans TC', 'Microsoft JhengHei', '微軟正黑體', sans-serif; 
+                        font-size: 10pt; 
+                        line-height: 1.4; 
+                        color: #1e293b; 
+                    }
+                    .main-header {
+                        border-bottom: 2px solid #000000;
+                        padding-bottom: 4pt;
+                        margin-bottom: 10pt;
+                        text-align: center; /* 大標題置中 */
+                    }
+                    .main-title {
+                        font-size: 13pt;
+                        font-weight: bold;
+                        color: #0f172a;
+                    }
+                    table.report-table-word { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin-bottom: 8pt; 
+                    }
+                    table.report-table-word td { 
+                        padding: 4pt; /* 極致緊貼邊框的 Padding */
+                        border: 1.5px solid #57534e; /* Word 外層公務格線 */
+                        vertical-align: top; 
+                    }
+                    .img-container {
+                        text-align: center;
+                        background-color: #f5f5f4;
+                        padding: 2pt;
+                        margin-bottom: 4pt;
+                    }
+                    /* 獨立內格線(說明欄格線框) */
+                    .desc-box-word {
+                        border: 1px solid #78716c; 
+                        background-color: #ffffff; 
+                        padding: 5pt; 
+                        margin-top: 3pt;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="Section1">
+            `;
+
+            const totalPages = Math.ceil(uploadedPhotos.length / photosPerPage);
+
+            for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+                if (pageIdx > 0) {
+                    htmlContent += `<br clear=all style='mso-special-character:line-break;page-break-before:always'>`;
+                }
+
+                // 標題置中，不包含右上角附屬字眼
+                htmlContent += `
+                    <div class="main-header">
+                        <span class="main-title">${title}</span>
+                    </div>
+                `;
+
+                const pagePhotos = uploadedPhotos.slice(pageIdx * photosPerPage, (pageIdx + 1) * photosPerPage);
+
+                if (currentLayout === 'single-column') {
+                    // 單欄 Word 格線排版 - 照片極致放大
+                    htmlContent += `<table class="report-table-word">`;
+                    pagePhotos.forEach(photo => {
+                        htmlContent += `
+                            <tr>
+                                <td style="padding:6pt;">
+                                    <div class="img-container">
+                                        <img src="${photo.src}" width="440" style="width: 440px; height: auto; display: block; margin: 0 auto; border: 1px solid #d6d3d1;" />
+                                    </div>
+                                    <div class="desc-box-word">
+                                        <p style="font-size: 9.5pt; color: #292524; margin: 0; min-height: 25pt;">${photo.description.replace(/\n/g, '<br>')}</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    htmlContent += `</table>`;
+                } else {
+                    // 雙欄 Word 密集格線排版 - 照片完美等比例放大至 245px
+                    htmlContent += `<table class="report-table-word">`;
+                    for (let i = 0; i < pagePhotos.length; i += 2) {
+                        const photo1 = pagePhotos[i];
+                        const photo2 = pagePhotos[i+1];
+
+                        htmlContent += `<tr>`;
+                        
+                        // 左格
+                        htmlContent += `
+                            <td width="50%" style="padding:5pt; width: 250pt;">
+                                <div class="img-container">
+                                    <img src="${photo1.src}" width="245" style="width: 245px; height: auto; display: block; margin: 0 auto; border: 1px solid #d6d3d1;" />
+                                </div>
+                                <div class="desc-box-word">
+                                    <p style="font-size: 9.5pt; color: #292524; margin: 0; min-height: 22pt;">${photo1.description.replace(/\n/g, '<br>')}</p>
+                                </div>
+                            </td>
+                        `;
+
+                        // 右格 (缺項則補空白框線格，確保格線連貫不位移)
+                        if (photo2) {
+                            htmlContent += `
+                                <td width="50%" style="padding:5pt; width: 250pt;">
+                                    <div class="img-container">
+                                        <img src="${photo2.src}" width="245" style="width: 245px; height: auto; display: block; margin: 0 auto; border: 1px solid #d6d3d1;" />
+                                    </div>
+                                    <div class="desc-box-word">
+                                        <p style="font-size: 9.5pt; color: #292524; margin: 0; min-height: 22pt;">${photo2.description.replace(/\n/g, '<br>')}</p>
+                                    </div>
+                                </td>
+                            `;
+                        } else {
+                            htmlContent += `<td width="50%" style="background-color:#fafaf9; width: 250pt;"></td>`;
+                        }
+
+                        htmlContent += `</tr>`;
+                    }
+                    htmlContent += `</table>`;
+                }
+            }
+
+            htmlContent += `
+                </div>
+            </body>
+            </html>
+            `;
+
+            const blob = new Blob(['\ufeff' + htmlContent], { type: 'application/msword;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${title}.doc`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            hideToast();
+            showToast("A4 Word 成果表下載成功！", "success");
+        }
+    </script>
+</body>
+</html>
